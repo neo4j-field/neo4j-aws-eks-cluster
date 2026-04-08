@@ -9,7 +9,7 @@
 #
 # DNS action required:
 #   Create a CNAME record in your domain registrar / DNS provider:
-#   CNAME  aws-eks-clstr.neo4jfield.org  →  <NLB hostname>
+#   CNAME  cluster.neo4jfield.org  →  <NLB hostname>
 
 apiVersion: v1
 kind: Service
