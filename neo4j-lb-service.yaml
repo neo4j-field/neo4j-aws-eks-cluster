@@ -1,0 +1,40 @@
+# External AWS Network Load Balancer for the Neo4j cluster
+#
+# Port mapping (TCP passthrough — TLS terminates inside Neo4j pods):
+#   443  → 7473  (HTTPS / Neo4j Browser)
+#   7687 → 7687  (Bolt+S)
+#
+# After applying, get the NLB hostname with:
+#   kubectl get svc neo4j-lb -n neo4j -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+#
+# DNS action required:
+#   Create a CNAME record in your domain registrar / DNS provider:
+#   CNAME  aws-eks-clstr.neo4jfield.org  →  <NLB hostname>
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j-lb
+  namespace: neo4j
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    # TCP passthrough — Neo4j handles TLS internally
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    # The Neo4j Helm chart labels all cluster pods with helm.neo4j.com/neo4j.name
+    # Verify after deployment: kubectl get pods -n neo4j --show-labels
+    helm.neo4j.com/neo4j.name: neo4j-ee-5-26-24-eks
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 7473
+    - name: bolt
+      protocol: TCP
+      port: 7687
+      targetPort: 7687

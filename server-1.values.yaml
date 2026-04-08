@@ -1,0 +1,132 @@
+# Neo4j Enterprise — Cluster Member: server-1
+# EKS cluster : drose-cluster2 (us-east-2)
+# AZ          : us-east-2a  (node ip-10-10-78-149)
+# Instance    : m7g.large  (2 vCPU / 8 GB RAM, ARM Graviton3)
+# Neo4j       : 5.26.23-enterprise
+# Cluster     : neo4j-ee-5-26-23-eks  (3 members total — all share this name)
+
+neo4j:
+  name: neo4j-ee-5-26-23-eks                  # cluster identity — must be identical in all 3 values files
+  minimumClusterSize: 3           # wait for all 3 members before accepting writes
+  edition: enterprise
+  image:
+    customImage: neo4j:5.26.23-enterprise
+  acceptLicenseAgreement: "yes"
+  passwordFromSecret: "neo4j-ee-5-26-23-eks-auth"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "2Gi"
+    limits:
+      cpu: "1000m"
+      memory: "5Gi"
+
+# ── Storage ────────────────────────────────────────────────────────────────────
+volumes:
+  data:
+    mode: dynamic
+    dynamic:
+      storageClassName: gp3highiops   # high IOPS gp3 — optimised for Neo4j data
+      accessModes:
+        - ReadWriteOnce
+      requests:
+        storage: 20Gi
+  logs:
+    mode: dynamic
+    dynamic:
+      storageClassName: aws-gp3-xfs  # standard gp3 SSD — sufficient for logs
+      accessModes:
+        - ReadWriteOnce
+      requests:
+        storage: 5Gi
+
+# ── TLS / SSL ─────────────────────────────────────────────────────────────────
+# Uses the wildcard cert (*.neo4jfield.org) stored in the neo4j-tls Kubernetes secret.
+# Issued by Let's Encrypt — covers aws-eks-clstr.neo4jfield.org with no hostname mismatch.
+ssl:
+  bolt:
+    privateKey:
+      secretName: neo4j-tls
+      subPath: private.key
+    publicCertificate:
+      secretName: neo4j-tls
+      subPath: public.crt
+  https:
+    privateKey:
+      secretName: neo4j-tls
+      subPath: private.key
+    publicCertificate:
+      secretName: neo4j-tls
+      subPath: public.crt
+  # cluster TLS omitted — wildcard cert does not cover internal k8s hostnames
+
+# ── Services ──────────────────────────────────────────────────────────────────
+# ClusterIP only — external access is via the shared NLB in neo4j-lb-service.yaml
+# which maps:  443 → 7473 (HTTPS)  and  7687 → 7687 (Bolt+S)
+services:
+  neo4j:
+    type: ClusterIP
+    annotations: {}
+
+# ── Neo4j configuration (maps to neo4j.conf) ─────────────────────────────────
+config:
+  # Memory — tuned for 5 Gi pod limit on m7g.large
+  server.memory.heap.initial_size: "1G"
+  server.memory.heap.max_size: "2G"
+  server.memory.pagecache.size: "1536m"
+
+  # HTTPS on 7473, HTTP disabled
+  server.https.enabled: "true"
+  server.https.listen_address: "0.0.0.0:7473"
+  server.http.enabled: "false"
+
+  # Bolt — TLS required
+  server.bolt.listen_address: "0.0.0.0:7687"
+  server.bolt.tls_level: "REQUIRED"
+
+  # Query logging
+  db.logs.query.enabled: "INFO"
+  db.logs.query.threshold: "1s"
+
+  # Metrics
+  server.metrics.enabled: "true"
+  server.metrics.prometheus.enabled: "true"
+
+  # Bloom & GDS — JARs ship in the enterprise image under /products;
+  # the initContainer below copies them to /plugins so Neo4j loads them.
+  dbms.security.procedures.unrestricted: "gds.*,bloom.*"
+  dbms.security.procedures.allowlist: "gds.*,bloom.*"
+# Register the Bloom HTTP endpoint — required for /bloom URL to work
+  server.unmanaged_extension_classes: "com.neo4j.bloom.server=/bloom"
+# Point Neo4j to where licenses are actually mounted (default /licenses is empty)
+  server.directories.licenses: "/var/lib/neo4j/licenses"
+# Explicitly tell Bloom where its license file is (Bloom 6.x requires this)
+  dbms.bloom.license_file: "/var/lib/neo4j/licenses/bloom.license"
+
+# ── License files (Bloom & GDS) + shared plugins volume ──────────────────────
+additionalVolumes:
+  - name: neo4j-licenses
+    secret:
+      secretName: neo4j-licenses
+  - name: plugins
+    emptyDir: {}
+
+additionalVolumeMounts:
+  - name: neo4j-licenses
+    mountPath: /var/lib/neo4j/licenses
+    readOnly: true
+  - name: plugins
+    mountPath: /var/lib/neo4j/plugins
+
+# ── Init container: copy Bloom & GDS JARs from products → plugins ────────────
+podSpec:
+  initContainers:
+    - name: copy-plugins
+      image: neo4j:2026.03.1-enterprise
+      command:
+        - /bin/sh
+        - -c
+        - cp /var/lib/neo4j/products/*.jar /var/lib/neo4j/plugins/
+      volumeMounts:
+        - name: plugins
+          mountPath: /var/lib/neo4j/plugins

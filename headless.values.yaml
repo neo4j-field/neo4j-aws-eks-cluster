@@ -1,0 +1,12 @@
+# Neo4j Cluster Headless Service
+# Provides in-cluster DNS-based routing across all 3 cluster members.
+# Drivers inside the cluster connect to:
+#   neo4j://neo4j-ee-5-26-23-eks.neo4j.svc.cluster.local:7687
+#
+# Install with:
+#   helm install neo4j-ee-5-26-23-eks-headless neo4j/neo4j-cluster-headless-service \
+#     --namespace neo4j \
+#     -f headless.values.yaml
+
+neo4j:
+  name: neo4j-ee-5-26-23-eks    # must match neo4j.name in all server values files

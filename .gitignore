@@ -1,0 +1,10 @@
+# License keys — never commit real keys
+bloom-key.txt
+gds-key.txt
+
+# TLS private key and certificate
+private.key
+public.crt
+
+# macOS
+.DS_Store
