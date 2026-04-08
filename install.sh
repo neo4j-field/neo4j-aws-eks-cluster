@@ -25,12 +25,15 @@ helm repo add neo4j https://helm.neo4j.com/neo4j 2>/dev/null || true
 helm repo update
 
 echo ""
-echo "=== Step 2: Detect latest Neo4j 5.x LTS version ==="
+echo "=== Step 2: Detect latest Neo4j LTS version ==="
+# LTS versions use semantic versioning (5.x, 6.x, ...).
+# Calendar versions start with a 4-digit year (2025.x, 2026.x, ...) — excluded.
 NEO4J_VERSION=$(helm search repo neo4j/neo4j --versions -o json \
   | python3 -c "
-import json, sys
+import json, sys, re
 versions = [d for d in json.load(sys.stdin)
-            if d['name'] == 'neo4j/neo4j' and d['version'].startswith('5.')]
+            if d['name'] == 'neo4j/neo4j'
+            and not re.match(r'^\d{4}\.', d['version'])]
 print(versions[0]['version'])
 ")
 NEO4J_IMAGE="neo4j:${NEO4J_VERSION}-enterprise"
@@ -133,7 +136,7 @@ echo "============================================================"
 echo " DEPLOYMENT COMPLETE"
 echo "============================================================"
 echo ""
-echo "Neo4j version : ${NEO4J_VERSION} (latest 5.x LTS)"
+echo "Neo4j version : ${NEO4J_VERSION} (latest LTS)"
 echo "NLB hostname  : ${NLB_HOST:-<not yet assigned — re-run: kubectl get svc neo4j-lb -n neo4j>}"
 echo ""
 echo ">>> DNS ACTION REQUIRED <<<"

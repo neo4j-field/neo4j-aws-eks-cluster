@@ -113,8 +113,9 @@ additionalVolumeMounts:
 podSpec:
   initContainers:
     - name: copy-plugins
-      # image is injected by install.sh via --set to match the deployed LTS version
-      image: neo4j:5.26.23-enterprise
+      # image is injected by install.sh via --set to match the deployed LTS version.
+      # The placeholder below is overridden at deploy time — do not hardcode here.
+      image: neo4j:LTS_VERSION-enterprise
       command:
         - /bin/sh
         - -c
