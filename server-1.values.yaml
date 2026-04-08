@@ -9,8 +9,8 @@ neo4j:
   name: neo4j-ee-5-26-23-eks                  # cluster identity — must be identical in all 3 values files
   minimumClusterSize: 3           # wait for all 3 members before accepting writes
   edition: enterprise
-  image:
-    customImage: neo4j:5.26.23-enterprise
+  # image.customImage is intentionally omitted — install.sh injects the latest
+  # 5.x LTS image at deploy time via --set neo4j.image.customImage=...
   acceptLicenseAgreement: "yes"
   passwordFromSecret: "neo4j-ee-5-26-23-eks-auth"
   resources:
@@ -122,7 +122,8 @@ additionalVolumeMounts:
 podSpec:
   initContainers:
     - name: copy-plugins
-      image: neo4j:2026.03.1-enterprise
+      # image is injected by install.sh via --set to match the deployed LTS version
+      image: neo4j:5.26.23-enterprise
       command:
         - /bin/sh
         - -c
