@@ -6,10 +6,10 @@ A production-ready Helm-based deployment of a 3-node Neo4j Enterprise cluster on
 
 ```
                         ┌─────────────────────────────┐
-Internet ──► AWS NLB ──►│  Neo4j EKS Cluster (neo4j ns)│
+Internet ──► AWS NLB ──►│ Neo4j EKS Cluster (neo4j ns)│
   443 → 7473 (HTTPS)    │                             │
-  7687 → 7687 (Bolt+S)  │  server-1  server-2  server-3│
-                        │   (AZ-a)    (AZ-b)   (AZ-c) │
+  7687 → 7687 (Bolt+S)  │ server-1  server-2  server-3│
+                        │  (AZ-a)    (AZ-b)   (AZ-c)  │
                         └─────────────────────────────┘
 ```
 
